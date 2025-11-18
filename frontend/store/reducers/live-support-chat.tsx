@@ -17,7 +17,7 @@ const suggestedResponses = [
   "The device won't turn on at all",
   "I need urgent assistance please",
   "When can someone pick this up?",
-]
+] 
 
 const initialMessages: Message[] = [
   {

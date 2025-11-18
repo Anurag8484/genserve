@@ -9,6 +9,7 @@ import { useAppDispatch } from "@/store/hooks"
 import { useAppSelector } from "@/store/hooks"
 import { ticketSliceAction } from "@/store"
 import { useToast } from "@/components/ui/use-toast"
+import { useOrders } from "@/hooks/useOrders"
 
 const capitalize = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s)
 
@@ -31,37 +32,60 @@ export function OrderComponentsModal({ isOpen, onClose }: OrderComponentsModalPr
     notes: "",
   })
 
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const dispatch = useAppDispatch()
   const tickets = useAppSelector((state) => state.tickets.tickets)
   const { toast } = useToast()
+  const { createOrder } = useOrders()
   const availableTickets = tickets.map(t => ({
     id: t.id,
     device: `${capitalize(t.product)} - ${t.deviceModel}`,
     issue: t.issue,
   }))
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Build an Order entry so it appears in Purchase History
-    const orderId = `P-${Math.floor(1000 + Math.random() * 9000)}`
-    const orderDate = new Date().toISOString().split('T')[0]
-    const product = `${capitalize(formData.deviceType)} - ${formData.component}`
-    dispatch(
-      ticketSliceAction.addOrder({
-        id: orderId,
-        product,
-        orderDate,
-        // These fields are required by the Order type though not displayed in UI
-        serviceTier: "Gold",
-        status: "Active",
+    
+    setIsSubmitting(true)
+    
+    try {
+      // Prepare data for API
+      const orderData = {
+        device_type: formData.deviceType,
+        component_name: formData.component,
+        ticket_id: formData.ticketId,
+        notes: formData.notes,
+        service_tier: "Gold",
+        status: "Active"
+      }
+
+      const order = await createOrder(orderData)
+      
+      toast({
+        title: "Order Placed Successfully",
+        description: `${formData.component} for ${formData.deviceType} ordered with reference ${order.id}. Check Purchase History for details.`,
+        duration: 3000,
       })
-    )
-    toast({
-      title: "Order Placed Successfully",
-      description: `${product} ordered with reference ${orderId}. Check Purchase History for details.`,
-      duration: 3000,
-    })
-    onClose()
+      
+      // Reset form
+      setFormData({
+        deviceType: "",
+        component: "",
+        ticketId: "",
+        notes: "",
+      })
+      
+      onClose()
+    } catch (error) {
+      toast({
+        title: "Error Placing Order",
+        description: "Failed to place order. Please try again.",
+        duration: 3000,
+        variant: "destructive"
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const availableComponents = formData.deviceType ? componentsByDevice[formData.deviceType] : []
@@ -178,10 +202,10 @@ export function OrderComponentsModal({ isOpen, onClose }: OrderComponentsModalPr
             </Button>
             <Button
               type="submit"
-              disabled={!formData.deviceType || !formData.component || !formData.ticketId}
+              disabled={!formData.deviceType || !formData.component || !formData.ticketId || isSubmitting}
               className="flex-1 bg-black text-white hover:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Order Components
+              {isSubmitting ? "Placing Order..." : "Order Components"}
             </Button>
           </div>
         </form>

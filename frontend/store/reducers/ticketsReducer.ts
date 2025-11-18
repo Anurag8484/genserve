@@ -32,6 +32,22 @@ export const ticketsReducers = {
     state.tickets = state.tickets.filter(t => t.id !== action.payload.id)
   },
 
+  replaceTickets: (state: TicketsState, action: PayloadAction<Ticket[]>) => {
+    state.tickets = action.payload
+  },
+
+  addTicket: (state: TicketsState, action: PayloadAction<Ticket>) => {
+    state.tickets.unshift(action.payload)
+  },
+
+  updateTicket: (state: TicketsState, action: PayloadAction<{ id: string; updates: Partial<Ticket> }>) => {
+    const { id, updates } = action.payload
+    const ticketIndex = state.tickets.findIndex(t => t.id === id)
+    if (ticketIndex !== -1) {
+      state.tickets[ticketIndex] = { ...state.tickets[ticketIndex], ...updates }
+    }
+  },
+
   // Resolved tickets
   resolveTicket: (
     state: TicketsState,
@@ -71,5 +87,9 @@ export const ticketsReducers = {
 
   removeOrder: (state: TicketsState, action: PayloadAction<{ id: string }>) => {
     state.orders = state.orders.filter(o => o.id !== action.payload.id)
+  },
+
+  replaceOrders: (state: TicketsState, action: PayloadAction<Order[]>) => {
+    state.orders = action.payload
   },
 }
