@@ -1,12 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import React from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Check, Wrench, Clock, Package, Truck } from "lucide-react"
+import { Check, Wrench, Clock, Package, Truck, AlertCircle } from "lucide-react"
 import { useAppSelector } from "@/store/hooks"
+import { useTickets } from "@/hooks/useTickets"
 import type { Ticket } from "@/store"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 type StepIcon = {
   status: string
@@ -70,13 +72,88 @@ const getTicketStatus = (ticket: Ticket): { status: string; color: string } => {
 
 export function RepairTracking({ defaultTicketId }: RepairTrackingProps) {
   const tickets = useAppSelector((state) => state.tickets.tickets)
+  const { loading, error, fetchTickets } = useTickets()
   const [selectedTicket, setSelectedTicket] = useState<string>(
     defaultTicketId && tickets.some(t => t.id === defaultTicketId)
       ? defaultTicketId
-      : tickets[0]?.id || ""
+      : ""
   )
+  
   const currentTracking = tickets.find(t => t.id === selectedTicket)
   const ticketStatus = getTicketStatus(currentTracking!)
+
+  // Update selected ticket when tickets load
+  useEffect(() => {
+    if (tickets.length > 0 && !selectedTicket) {
+      setSelectedTicket(tickets[0].id)
+    }
+  }, [tickets, selectedTicket])
+
+  // Set first ticket as default when defaultTicketId is not provided
+  useEffect(() => {
+    if (tickets.length > 0 && !defaultTicketId && !selectedTicket) {
+      setSelectedTicket(tickets[0].id)
+    }
+  }, [tickets, defaultTicketId, selectedTicket])
+
+  if (loading && tickets.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Real-Time Repair Tracking</CardTitle>
+          <p className="text-sm text-muted-foreground mt-1">Track your device repair progress</p>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center py-8">
+            <Clock className="w-6 h-6 animate-spin mr-2" />
+            <p className="text-muted-foreground">Loading tickets...</p>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Real-Time Repair Tracking</CardTitle>
+          <p className="text-sm text-muted-foreground mt-1">Track your device repair progress</p>
+        </CardHeader>
+        <CardContent>
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              {error}
+            </AlertDescription>
+          </Alert>
+          <button 
+            onClick={fetchTickets}
+            className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+          >
+            Retry
+          </button>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (tickets.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Real-Time Repair Tracking</CardTitle>
+          <p className="text-sm text-muted-foreground mt-1">Track your device repair progress</p>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <Package className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+            <p className="text-muted-foreground">No tickets found. Create a service request to get started.</p>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <Card>
@@ -94,7 +171,7 @@ export function RepairTracking({ defaultTicketId }: RepairTrackingProps) {
                 selectedTicket === ticket.id ? "text-foreground" : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {ticket.id}
+              ticket-{ticket.id}
               {selectedTicket === ticket.id && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-foreground" />}
             </button>
           ))}

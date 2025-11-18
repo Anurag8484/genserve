@@ -8,6 +8,7 @@ import { useAppDispatch } from "@/store/hooks"
 import { ticketSliceAction } from "@/store"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useToast } from "@/components/ui/use-toast"
+import { useTickets } from "@/hooks/useTickets"
 
 // Device models mapped to product types
 const DEVICE_MODELS = {
@@ -64,6 +65,12 @@ export function SchedulePickupModal({ isOpen, onClose }: SchedulePickupModalProp
     notes: "",
   })
 
+  const [phoneError, setPhoneError] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { toast } = useToast()
+  const { createTicket } = useTickets()
+  const dispatch = useAppDispatch()
+
   // Set initial pickup date after component mounts
   useEffect(() => {
     setFormData(prev => ({
@@ -79,9 +86,7 @@ export function SchedulePickupModal({ isOpen, onClose }: SchedulePickupModalProp
       deviceModel: ""
     }))
   }, [formData.product])
-  
-  const [phoneError, setPhoneError] = useState("")
-  const { toast } = useToast()
+
 
   const validatePhoneNumber = (phone: string): boolean => {
     // Allow +91 followed by 10 digits, or just 10 digits
@@ -104,35 +109,61 @@ export function SchedulePickupModal({ isOpen, onClose }: SchedulePickupModalProp
     }
   }
 
-  const dispatch = useAppDispatch()
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (!validatePhoneNumber(formData.contactNumber)) {
       setPhoneError("Please enter a valid Indian mobile number")
       return
     }
-    dispatch(ticketSliceAction.createTicket({
-      ...formData,
-      status: "Not Picked"
-    }))
-    setFormData({
-      product: "",
-      deviceModel: "",
-      issue: "",
-      pickupDate: new Date().toISOString().split('T')[0],
-      timeSlot: "",
-      address: "",
-      contactNumber: "",
-      notes: "",
-    })
-    setPhoneError("")
-    toast({
-      title: "Ticket Created Successfully",
-      description: "Your service request has been submitted. You can track its status in the Active Support Tickets.",
-      duration: 3000
-    })
-    onClose()
+
+    setIsSubmitting(true)
+    
+    try {
+      // Prepare data for API
+      const ticketData = {
+        description: formData.issue,
+        product_category: formData.product,
+        device_model: formData.deviceModel,
+        pickup_date: formData.pickupDate,
+        preferred_time_slot: formData.timeSlot,
+        pickup_address: formData.address,
+        contact: formData.contactNumber,
+        status: "Not Picked"
+      }
+
+      await createTicket(ticketData)
+      
+      // Reset form
+      setFormData({
+        product: "",
+        deviceModel: "",
+        issue: "",
+        pickupDate: new Date().toISOString().split('T')[0],
+        timeSlot: "",
+        address: "",
+        contactNumber: "",
+        notes: "",
+      })
+      setPhoneError("")
+      
+      toast({
+        title: "Ticket Created Successfully",
+        description: "Your service request has been submitted. You can track its status in the Active Support Tickets.",
+        duration: 3000
+      })
+      
+      onClose()
+    } catch (error) {
+      toast({
+        title: "Error Creating Ticket",
+        description: "Failed to create ticket. Please try again.",
+        duration: 3000,
+        variant: "destructive"
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   if (!isOpen) return null
@@ -316,9 +347,9 @@ export function SchedulePickupModal({ isOpen, onClose }: SchedulePickupModalProp
             <Button 
               type="submit" 
               className="flex-1 bg-black text-white hover:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={!formData.product || !formData.deviceModel || !formData.issue || !formData.pickupDate || !formData.timeSlot || !formData.address || !formData.contactNumber}
+              disabled={!formData.product || !formData.deviceModel || !formData.issue || !formData.pickupDate || !formData.timeSlot || !formData.address || !formData.contactNumber || isSubmitting}
             >
-              Create Ticket
+              {isSubmitting ? "Creating Ticket..." : "Create Ticket"}
             </Button>
           </div>
         </form>
